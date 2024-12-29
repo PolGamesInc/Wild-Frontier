@@ -8,6 +8,9 @@ public class Player : MonoBehaviour
     [SerializeField] private float JumpStrong = 300f;
     [SerializeField] private float SpeedSprintPlayer = 10f;
     [SerializeField] private float SpeedSitPlayer = 2.5f;
+    [SerializeField] private float MaxStamina;
+    [SerializeField] private float StaminaDepletion = 10f;
+    [SerializeField] private float StaminaRecovery = 5f;
     [SerializeField] private Transform Camera;
     [SerializeField] private Transform PlayerModel;
     private Rigidbody RigidbodyPlayer;
@@ -17,6 +20,7 @@ public class Player : MonoBehaviour
     private Vector3 OriginalCenterPlayerCollider;
     private Vector3 OriginalScalePlayer;
     private bool isSit = false;
+    private bool isSprinting = false;
 
     private void Start()
     {
@@ -26,12 +30,15 @@ public class Player : MonoBehaviour
         OriginalHeightPlayerCollider = PlayerCollider.height;
         OriginalCenterPlayerCollider = PlayerCollider.center;
         OriginalScalePlayer = PlayerModel.localScale;
+
+        MaxStamina = 100f;
     }
 
     private void Update()
     {
         Move();
         CheckGroundForJump();
+        RegenerateStamina();
 
         if(Input.GetKeyDown(KeyCode.C))
         {
@@ -68,7 +75,43 @@ public class Player : MonoBehaviour
         Right.Normalize();
 
         Vector3 Movement = (Forward * MoveVertical + Right * MoveHorizontal).normalized;
-        float CurrentSpeed = Input.GetKey(KeyCode.LeftShift) ? SpeedSprintPlayer : (isSit ? SpeedSitPlayer : SpeedMovePlayer);  
+        if(Input.GetKey(KeyCode.LeftShift) && StaminaDepletion > 0f)
+        {
+            isSprinting = true;
+            MaxStamina -= StaminaDepletion * Time.deltaTime;
+        }
+        else
+        {
+            isSprinting = false;
+        }
+        float CurrentSpeed;
+        if(MaxStamina <= 0f)
+        {
+            isSprinting = false;
+            CurrentSpeed = SpeedMovePlayer;
+        }
+        else
+        {
+            if(Input.GetKey(KeyCode.LeftShift) && MaxStamina > 0f)
+            {
+                isSprinting = true;
+                MaxStamina -= StaminaDepletion * Time.deltaTime;
+            }
+            else
+            {
+                isSprinting = false;
+            }
+            CurrentSpeed = isSprinting ? SpeedSprintPlayer : SpeedMovePlayer;
+        }
+
+        if(isSit == true)
+        {
+            CurrentSpeed = SpeedSitPlayer;
+        }
+        else
+        {
+            CurrentSpeed = isSprinting ? SpeedSprintPlayer : SpeedMovePlayer;
+        }
         RigidbodyPlayer.MovePosition(transform.position + Movement * CurrentSpeed * Time.deltaTime);
     }
 
@@ -97,6 +140,20 @@ public class Player : MonoBehaviour
             PlayerCollider.center = OriginalCenterPlayerCollider;
 
             PlayerModel.localScale = OriginalScalePlayer;
+        }
+    }
+
+    private void RegenerateStamina()
+    {
+        if(isSprinting == false && MaxStamina < 100f)
+        {
+            MaxStamina += StaminaRecovery * Time.deltaTime;
+            MaxStamina = Mathf.Clamp(MaxStamina, 0f, 100f);
+        }
+
+        if(MaxStamina > 0f)
+        {
+            isSprinting = false;
         }
     }
 }
